@@ -1,32 +1,35 @@
 /**
- * Gestiona el listado y el formulario de tareas en el navegador.
- * Los datos viven en memoria para demostrar crear, editar y eliminar
- * sin base de datos. Más adelante cada consulta filtrará por user_id.
+ * Gestiona el listado y el formulario de tareas.
+ * Las tareas se leen y se guardan en la tabla "tasks" de Supabase.
+ * Gracias a las políticas RLS, cada usuario solo ve y modifica las suyas.
  */
 const taskState = {
-  items: [
-    {
-      id: "demo-1",
-      title: "Leer el enunciado del proyecto",
-      description: "Revisar requisitos de HTML, CSS, JavaScript y Supabase.",
-      status: "done",
-    },
-    {
-      id: "demo-2",
-      title: "Preparar maqueta de pantallas",
-      description: "Login, registro y listado de tareas en escritorio y móvil.",
-      status: "pending",
-    },
-  ],
+  items: [],
   filter: "all",
 };
 
 /**
- * Genera un identificador simple para tareas locales.
- * @returns {string}
+ * Descarga de Supabase las tareas del usuario con sesión iniciada
+ * y vuelve a pintar la lista.
  */
-function createTaskId() {
-  return "task-" + Date.now();
+async function loadTasks() {
+  const client = getSupabaseClient();
+  if (!client) {
+    return;
+  }
+
+  const { data, error } = await client
+    .from("tasks")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    window.alert("No se pudieron cargar las tareas: " + error.message);
+    return;
+  }
+
+  taskState.items = data;
+  renderTasks();
 }
 
 /**
@@ -97,7 +100,7 @@ function openTaskModal(taskId) {
   document.getElementById("modal-title").textContent = task ? "Editar tarea" : "Nueva tarea";
   document.getElementById("task-id").value = task ? task.id : "";
   document.getElementById("task-title").value = task ? task.title : "";
-  document.getElementById("task-description").value = task ? task.description : "";
+  document.getElementById("task-description").value = task ? task.description || "" : "";
   document.getElementById("task-status").value = task ? task.status : "pending";
   document.getElementById("task-error").hidden = true;
   modal.showModal();
@@ -112,10 +115,10 @@ function closeTaskModal() {
 }
 
 /**
- * Crea o actualiza una tarea a partir del formulario.
+ * Crea o actualiza una tarea en Supabase a partir del formulario.
  * @param {SubmitEvent} event
  */
-function saveTask(event) {
+async function saveTask(event) {
   event.preventDefault();
   const id = document.getElementById("task-id").value;
   const title = document.getElementById("task-title").value.trim();
@@ -129,39 +132,56 @@ function saveTask(event) {
     return;
   }
 
+  const client = getSupabaseClient();
+  if (!client) {
+    errorBox.hidden = false;
+    errorBox.textContent = "No hay conexión con Supabase.";
+    return;
+  }
+
+  let result;
   if (id) {
-    taskState.items = taskState.items.map(function (task) {
-      if (task.id !== id) {
-        return task;
-      }
-      return { id: task.id, title: title, description: description, status: status };
-    });
+    result = await client
+      .from("tasks")
+      .update({ title: title, description: description, status: status })
+      .eq("id", id);
   } else {
-    taskState.items.unshift({
-      id: createTaskId(),
-      title: title,
-      description: description,
-      status: status,
-    });
+    result = await client
+      .from("tasks")
+      .insert({ title: title, description: description, status: status });
+  }
+
+  if (result.error) {
+    errorBox.hidden = false;
+    errorBox.textContent = "No se pudo guardar: " + result.error.message;
+    return;
   }
 
   closeTaskModal();
-  renderTasks();
+  loadTasks();
 }
 
 /**
- * Elimina una tarea de la lista local.
+ * Elimina una tarea de Supabase después de pedir confirmación.
  * @param {string} taskId
  */
-function deleteTask(taskId) {
+async function deleteTask(taskId) {
   const confirmed = window.confirm("¿Eliminar esta tarea?");
   if (!confirmed) {
     return;
   }
-  taskState.items = taskState.items.filter(function (task) {
-    return task.id !== taskId;
-  });
-  renderTasks();
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return;
+  }
+
+  const { error } = await client.from("tasks").delete().eq("id", taskId);
+  if (error) {
+    window.alert("No se pudo eliminar: " + error.message);
+    return;
+  }
+  loadTasks();
 }
 
 /**

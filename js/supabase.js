@@ -1,25 +1,39 @@
 /**
- * Configuración futura de Supabase.
- * En esta etapa no se abre ninguna conexión real: solo se deja el esqueleto
- * para rellenar URL y clave anónima cuando el equipo active el backend.
+ * Configuración de Supabase.
+ * La URL y la clave publishable son públicas por diseño: la seguridad real
+ * la dan las políticas RLS de la tabla tasks. Nunca pongas aquí la clave
+ * secret ni la service_role.
  */
 const SUPABASE_CONFIG = {
-  url: "",
-  anonKey: "",
+  url: "https://oidezzllleldjpdyvtye.supabase.co",
+  anonKey: "sb_publishable_raL5PDACokvnoiGXPvf8dw_gNS43GRz",
 };
 
+/** Cliente único de Supabase, se crea la primera vez que se necesita. */
+let supabaseClient = null;
+
 /**
- * Devuelve el cliente de Supabase cuando exista configuración.
- * Hoy retorna null para que auth y tareas trabajen con datos locales de prueba.
- * @returns {object|null} Cliente o null si aún no hay credenciales.
+ * Devuelve el cliente de Supabase, creándolo si todavía no existe.
+ * Retorna null si falta la configuración o si la librería no está cargada
+ * en index.html.
+ * @returns {object|null} Cliente de Supabase o null.
  */
 function getSupabaseClient() {
+  if (supabaseClient) {
+    return supabaseClient;
+  }
   if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.anonKey) {
     return null;
   }
+  if (!window.supabase || typeof window.supabase.createClient !== "function") {
+    return null;
+  }
 
-  // Más adelante: return supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
-  return null;
+  supabaseClient = window.supabase.createClient(
+    SUPABASE_CONFIG.url,
+    SUPABASE_CONFIG.anonKey
+  );
+  return supabaseClient;
 }
 
 /**

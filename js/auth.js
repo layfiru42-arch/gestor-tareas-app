@@ -1,7 +1,6 @@
 /**
- * Controla las pantallas de registro e inicio de sesión.
- * Mientras Supabase no esté conectado, la sesión se simula en memoria
- * para poder revisar el diseño y el flujo de la interfaz.
+ * Controla el registro, el inicio de sesión y el cierre de sesión
+ * usando Supabase Auth. La sesión se restaura sola al recargar la página.
  */
 const authState = {
   user: null,
@@ -43,7 +42,7 @@ function setAuthError(elementId, message) {
 }
 
 /**
- * Valida un correo de forma básica (suficiente para la maqueta).
+ * Valida un correo de forma básica.
  * @param {string} email
  * @returns {boolean}
  */
@@ -52,7 +51,22 @@ function isValidEmail(email) {
 }
 
 /**
+ * Convierte el usuario de Supabase en el objeto simple que usa la interfaz.
+ * @param {object} supabaseUser Usuario devuelto por Supabase Auth.
+ * @returns {{id: string, email: string, name: string}}
+ */
+function buildUserFromSupabase(supabaseUser) {
+  const metadata = supabaseUser.user_metadata || {};
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email,
+    name: metadata.name || supabaseUser.email.split("@")[0],
+  };
+}
+
+/**
  * Intercambia la vista de acceso por el tablero de tareas, o al revés.
+ * Si hay sesión, pide las tareas del usuario a la base de datos.
  */
 function renderAuthView() {
   const isLoggedIn = Boolean(authState.user);
@@ -62,17 +76,17 @@ function renderAuthView() {
   if (isLoggedIn) {
     document.getElementById("user-greeting").textContent =
       "Hola, " + (authState.user.name || authState.user.email);
-    if (typeof renderTasks === "function") {
-      renderTasks();
+    if (typeof loadTasks === "function") {
+      loadTasks();
     }
   }
 }
 
 /**
- * Simula un inicio de sesión. Cuando exista Supabase, aquí irá signInWithPassword.
+ * Inicia sesión con correo y contraseña en Supabase.
  * @param {SubmitEvent} event
  */
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   const email = document.getElementById("login-email").value.trim();
   const password = document.getElementById("login-password").value;
@@ -82,16 +96,29 @@ function handleLogin(event) {
     return;
   }
 
+  const client = getSupabaseClient();
+  if (!client) {
+    setAuthError("login-error", "No se pudo conectar con Supabase. Recarga la página.");
+    return;
+  }
+
   setAuthError("login-error", "");
-  authState.user = { id: "local-user", email, name: email.split("@")[0] };
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    setAuthError("login-error", "No se pudo iniciar sesión: " + error.message);
+    return;
+  }
+
+  authState.user = buildUserFromSupabase(data.user);
   renderAuthView();
 }
 
 /**
- * Simula un registro. Cuando exista Supabase, aquí irá signUp.
+ * Registra una cuenta nueva en Supabase y guarda el nombre del usuario.
  * @param {SubmitEvent} event
  */
-function handleRegister(event) {
+async function handleRegister(event) {
   event.preventDefault();
   const name = document.getElementById("register-name").value.trim();
   const email = document.getElementById("register-email").value.trim();
@@ -102,16 +129,44 @@ function handleRegister(event) {
     return;
   }
 
+  const client = getSupabaseClient();
+  if (!client) {
+    setAuthError("register-error", "No se pudo conectar con Supabase. Recarga la página.");
+    return;
+  }
+
   setAuthError("register-error", "");
-  authState.user = { id: "local-user", email, name };
-  renderAuthView();
+  const { data, error } = await client.auth.signUp({
+    email,
+    password,
+    options: { data: { name: name } },
+  });
+
+  if (error) {
+    setAuthError("register-error", "No se pudo crear la cuenta: " + error.message);
+    return;
+  }
+
+  if (data.session) {
+    authState.user = buildUserFromSupabase(data.user);
+    renderAuthView();
+  } else {
+    setAuthError("register-error", "Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.");
+  }
 }
 
 /**
- * Cierra la sesión simulada y vuelve a la pantalla de acceso.
+ * Cierra la sesión en Supabase y vuelve a la pantalla de acceso.
  */
-function handleLogout() {
+async function handleLogout() {
+  const client = getSupabaseClient();
+  if (client) {
+    await client.auth.signOut();
+  }
   authState.user = null;
+  if (typeof taskState !== "undefined") {
+    taskState.items = [];
+  }
   document.getElementById("form-login").reset();
   document.getElementById("form-register").reset();
   showLoginForm();
@@ -119,14 +174,22 @@ function handleLogout() {
 }
 
 /**
- * Enlaza botones y formularios de autenticación al cargar la página.
+ * Enlaza botones y formularios y recupera la sesión guardada, si existe.
  */
-function initAuth() {
+async function initAuth() {
   document.getElementById("tab-login").addEventListener("click", showLoginForm);
   document.getElementById("tab-register").addEventListener("click", showRegisterForm);
   document.getElementById("form-login").addEventListener("submit", handleLogin);
   document.getElementById("form-register").addEventListener("submit", handleRegister);
   document.getElementById("btn-logout").addEventListener("click", handleLogout);
+
+  const client = getSupabaseClient();
+  if (client) {
+    const { data } = await client.auth.getSession();
+    if (data.session) {
+      authState.user = buildUserFromSupabase(data.session.user);
+    }
+  }
   renderAuthView();
 }
 
