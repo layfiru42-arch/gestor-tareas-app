@@ -1,0 +1,7 @@
+git init
+git branch -M main
+git remote add origin https://github.com/layfiru42-arch/gestor-tareas-app.git
+echo "# gestor-tareas-app" > README.md
+git add .
+git commit -m "Primer commit"
+git push -u origin main
