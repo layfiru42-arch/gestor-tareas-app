@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bitácora | Gestor de tareas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,650;1,6..72,500&family=Outfit:wght@380;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <!-- Vista de autenticación: visible mientras no hay sesión -->
+    <section id="auth-view" class="auth-view" aria-label="Acceso a la cuenta">
+      <div class="auth-panel auth-panel--brand">
+        <p class="eyebrow">Proyecto universitario</p>
+        <h1>Bitácora</h1>
+        <p class="lead">
+          Organiza tus entregas, recordatorios y pendientes en un solo lugar.
+          Cada cuenta ve únicamente sus propias tareas.
+        </p>
+        <ul class="brand-points">
+          <li>Registro e inicio de sesión</li>
+          <li>Crear, editar y eliminar tareas</li>
+          <li>Diseño adaptable a móvil y escritorio</li>
+        </ul>
+      </div>
+
+      <div class="auth-panel auth-panel--form">
+        <div class="auth-card">
+          <div class="auth-tabs" role="tablist">
+            <button
+              type="button"
+              id="tab-login"
+              class="auth-tab is-active"
+              role="tab"
+              aria-selected="true"
+            >
+              Iniciar sesión
+            </button>
+            <button
+              type="button"
+              id="tab-register"
+              class="auth-tab"
+              role="tab"
+              aria-selected="false"
+            >
+              Crear cuenta
+            </button>
+          </div>
+
+          <form id="form-login" class="auth-form" novalidate>
+            <h2>Bienvenido de nuevo</h2>
+            <p class="form-hint">Usa tu correo institucional para entrar.</p>
+            <label>
+              Correo electrónico
+              <input type="email" id="login-email" name="email" autocomplete="email" required />
+            </label>
+            <label>
+              Contraseña
+              <input
+                type="password"
+                id="login-password"
+                name="password"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+            <p id="login-error" class="form-error" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary">Entrar</button>
+          </form>
+
+          <form id="form-register" class="auth-form" hidden novalidate>
+            <h2>Crea tu cuenta</h2>
+            <p class="form-hint">Tus tareas quedarán asociadas a este correo.</p>
+            <label>
+              Nombre
+              <input type="text" id="register-name" name="name" autocomplete="name" required />
+            </label>
+            <label>
+              Correo electrónico
+              <input type="email" id="register-email" name="email" autocomplete="email" required />
+            </label>
+            <label>
+              Contraseña
+              <input
+                type="password"
+                id="register-password"
+                name="password"
+                autocomplete="new-password"
+                minlength="6"
+                required
+              />
+            </label>
+            <p id="register-error" class="form-error" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary">Registrarme</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista principal: se muestra tras un inicio de sesión simulado -->
+    <section id="app-view" class="app-view" hidden>
+      <header class="app-header">
+        <div class="brand-lockup">
+          <span class="logo-mark" aria-hidden="true"></span>
+          <div>
+            <p class="eyebrow">Bitácora</p>
+            <h1>Mis tareas</h1>
+          </div>
+        </div>
+        <div class="header-actions">
+          <p id="user-greeting" class="user-greeting">Hola</p>
+          <button type="button" id="btn-logout" class="btn btn-ghost">Cerrar sesión</button>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <aside class="toolbar">
+          <button type="button" id="btn-new-task" class="btn btn-primary">Nueva tarea</button>
+          <div class="filters" role="group" aria-label="Filtrar tareas">
+            <button type="button" class="chip is-active" data-filter="all">Todas</button>
+            <button type="button" class="chip" data-filter="pending">Pendientes</button>
+            <button type="button" class="chip" data-filter="done">Completadas</button>
+          </div>
+        </aside>
+
+        <p id="task-empty" class="empty-state" hidden>
+          Aún no tienes tareas. Crea la primera para empezar tu bitácora.
+        </p>
+        <ul id="task-list" class="task-list" aria-live="polite"></ul>
+      </main>
+    </section>
+
+    <!-- Modal de crear / editar tarea -->
+    <dialog id="task-modal" class="task-modal">
+      <form id="form-task" method="dialog">
+        <h2 id="modal-title">Nueva tarea</h2>
+        <input type="hidden" id="task-id" />
+        <label>
+          Título
+          <input type="text" id="task-title" name="title" maxlength="80" required />
+        </label>
+        <label>
+          Descripción
+          <textarea id="task-description" name="description" rows="4" maxlength="400"></textarea>
+        </label>
+        <label>
+          Estado
+          <select id="task-status" name="status">
+            <option value="pending">Pendiente</option>
+            <option value="done">Completada</option>
+          </select>
+        </label>
+        <p id="task-error" class="form-error" role="alert" hidden></p>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-task" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Scripts: supabase (placeholder) → auth → tareas -->
+    <script src="js/supabase.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/tasks.js"></script>
+  </body>
+</html>
