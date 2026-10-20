@@ -1,4 +1,5 @@
 /**
+//modulo de gestion
  * Gestiona el listado y el formulario de tareas.
  * Las tareas se leen y se guardan en la tabla "tasks" de Supabase.
  * Gracias a las políticas RLS, cada usuario solo ve y modifica las suyas.
