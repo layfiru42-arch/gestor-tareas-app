@@ -37,5 +37,5 @@ Tabla `tasks` con las columnas: `id`, `user_id`, `title`, `description`, `status
 
 ## Integrantes
 
-- layfiru42-arch
-- (nombre del compañero o compañera)
+- Joshua Moreno
+- Elvis Castillo
